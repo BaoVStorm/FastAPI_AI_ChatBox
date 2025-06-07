@@ -1,0 +1,73 @@
+import os
+os.environ["HF_HOME"] = "/mnt/d/Document/huggingface_cache"
+
+from langchain_community.llms import CTransformers
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain_community.embeddings import GPT4AllEmbeddings
+from langchain_huggingface.embeddings import HuggingFaceEmbeddings
+from langchain_community.vectorstores import FAISS
+
+# Cau hinh
+model_file = "models/vinallama-7b-chat_q5_0.gguf"
+# model_file = "models/mistral-7b-instruct-v0.1.Q4_K_M.gguf"
+vector_db_path = "vectorstores/astrolingo_chatBox_v2"
+
+# Load LLM
+def load_llm(model_file):
+    llm = CTransformers(
+        model=model_file,
+        model_type="llama",
+        max_new_tokens=512,
+        temperature=0.05
+    )
+    return llm
+
+# Tao prompt template
+def creat_prompt(template):
+    prompt = PromptTemplate(template = template, input_variables=["context", "question"])
+    return prompt
+
+
+# Tao simple chain
+def create_qa_chain(prompt, llm, db):
+    # đầu vào sẽ là 1 promt, 1 llm (model), db (đã chuyển từ file pdf)
+
+    llm_chain = RetrievalQA.from_chain_type(
+        llm = llm,
+        chain_type= "stuff",
+        retriever = db.as_retriever(
+            search_kwargs = {"k":3},            # n văn bản gần nhất với câu query
+            max_tokens_limit=512
+        ),        
+        return_source_documents = True,        # Câu trả lời thuộc văn bản nào
+        chain_type_kwargs= {'prompt': prompt}   
+
+    )
+    return llm_chain
+
+# Read tu VectorDB
+def read_vectors_db():
+    # Embeding
+    # embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+    embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-mpnet-base-v2")
+
+    db = FAISS.load_local(vector_db_path, embedding_model, allow_dangerous_deserialization=True)
+    return db
+
+
+# Bat dau thu nghiem
+db = read_vectors_db()
+llm = load_llm(model_file)
+
+#Tao Prompt
+template = """<|im_start|>system\nSử dụng thông tin sau đây để trả lời câu hỏi. Nếu bạn không biết câu trả lời, hãy nói không biết, đừng cố tạo ra câu trả lời\n
+    {context}<|im_end|>\n<|im_start|>user\n{question}<|im_end|>\n<|im_start|>assistant"""
+prompt = creat_prompt(template)
+
+llm_chain = create_qa_chain(prompt, llm, db)
+
+# Chay cai chain
+question = "Astrolingo là gì?"
+response = llm_chain.invoke({"query": question})
+print(response)

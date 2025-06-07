@@ -1,0 +1,5 @@
+all-MiniLM-L6-v2-f16.gguf:
+https://drive.google.com/file/d/1FDSi10pimuQK5tWCF4-wnV5RGmQQPTSJ/view?usp=sharing
+
+vinallama-7b-chat_q5_0.gguf:
+https://drive.google.com/file/d/1jpLtxOS66OHyLV-3QIBCk58H8AZ88uvu/view?usp=sharing
